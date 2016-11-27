@@ -1,0 +1,219 @@
+
+/*	unsigned int num_clust_words = 0;
+
+	for(int i = 0; i < (int) words.size(); i++)
+		if(words[i].cluster()>num_clust_words)
+			num_clust_words = words[i].cluster();
+
+	string dir_clustered_words = "/home/adutta/Workspace/Qidenus/Results/PreviouslyClusteredWords/";
+
+	string cmd_del = "rm -r "+dir_clustered_words+"*";
+
+	int ignore = std::system(cmd_del.c_str());
+
+	for(int i = 0; i < num_clust_words; i++)
+	{
+		string diri = dir_clustered_words+std::to_string(i);
+		string cmdi = "mkdir "+diri;
+		ignore = std::system(cmdi.c_str());
+	}
+
+    vector<int> count_clust_memb(num_clust_words);
+
+	for(int i = 0; i < num_clust_words; i++)
+	{
+		string diri = dir_clustered_words+std::to_string(i);
+
+		for(int j = 0; j < (int)words.size(); j++)
+			if(words[j].cluster() == i)
+			{
+                count_clust_memb[i]++;
+				Mat im = imread(dir_docs+words[j].doc()+".jpg", CV_LOAD_IMAGE_COLOR);
+				Rect roi(words[j].bbox().x, words[j].bbox().y, words[j].bbox().w, words[j].bbox().h);
+				Mat word_image = im(roi);
+
+				string wrdj = diri+"/"+std::to_string(j)+".jpg";
+				imwrite(wrdj, word_image);
+			}
+	}
+
+	cout<<"Done"<<endl;
+
+    int count_zeros = 0;
+    for(int i = 0; i < num_clust_words; i++)
+    {
+        if(count_clust_memb[i] == 0)
+            count_zeros++;
+        cout<<"Cluster "<<i<<" contains "<<count_clust_memb[i]<<" words."<<endl;
+    }
+
+    	for(int idoc = 0; idoc < 9; idoc++)
+    	{
+    		string doc1 = docs[idoc];
+
+    		cout<<"Plotting triangles on "<<doc1<<endl;
+
+    		Mat im = imread(dir_docs+doc1+".jpg", CV_LOAD_IMAGE_COLOR);
+
+    		for(int i = 0; i < (int) words.size(); i++)
+    			if(words[i].doc() == doc1)
+    			{
+    				myrectangle rect = words[i].bbox();
+    				rectangle(im, Point(rect.x,rect.y), Point(rect.x+rect.w, rect.y+rect.h), Scalar(0,0,0), 3, 8, 0);
+    			}
+
+    		for(int i = 0; i < (int)tris.size(); i++)
+    			if(tris[i].get_doc_name() == doc1)
+    			{
+    				int cl = tris[i].get_cluster_id();
+
+    //				Scalar col = Scalar(list_cols[cl][0], list_cols[cl][1], list_cols[cl][2]);
+    //				tris[i].draw_traingle(im, col);
+
+    				if(cl == 40)
+    				{
+    					Scalar col = Scalar(list_cols[cl][0], list_cols[cl][1], list_cols[cl][2]);
+    					tris[i].draw_triangle(im, col);
+    				}
+    			}
+    		imwrite( dir_res+doc1+".jpg", im );
+    	}cout<<"Number of cluster with zero members: "<<count_zeros<<endl;*/
+
+
+	// vector<word> words = ReadFile1("/home/" + usr + "/Workspace/Qidenus/Database/list_words/words.csv");
+
+	// vector<word> words = ReadFile2("/home/" + usr + "/Workspace/Qidenus/Database/list_words/allwords.csv");
+
+	// vector<unsigned int> freq_word_clust;
+	// freq_word_clust = CountFreqWordClusters(words);
+	// vector<size_t> indices_word_clusters = sort_descend( freq_word_clust );
+
+	// indices_word_clusters.resize(10);
+
+//	cout<<"Frequent word cluster indices: "<<flush;
+//	for(int i = 0; i < indices_word_clusters.size(); i++)
+//		cout<<indices_word_clusters[i]<<", "<<flush;
+//	cout<<endl;
+
+//	string dir_freq_words = "/home/adutta/Workspace/Qidenus/Results/FreqWordsOnDocs/";
+//
+//	for(int idoc = 0; idoc < 9; idoc++) {
+//		string doc1 = docs[idoc];
+//
+//		cout << "Plotting frequent words on " << doc1 << endl;
+//
+//		Mat im = imread(dir_docs + doc1 + ".jpg", CV_LOAD_IMAGE_COLOR);
+//
+//		for(int iw = 0; iw < (int) words.size(); iw++)
+//			if( words[iw].doc() == doc1 && find(indices_word_clusters.begin(), indices_word_clusters.end(),
+//											   words[iw].cluster()) != indices_word_clusters.end() ) // Check whether word_i belong to indices
+//			{
+//				myrectangle rect = words[iw].bbox();
+//				rectangle(im, Point(rect.x, rect.y), Point(rect.x + rect.w, rect.y + rect.h), Scalar(0, 0, 0), 3, 8, 0);
+//
+//				string str = to_string(words[iw].cluster()) + " " + to_string(words[iw].line());
+//
+//				putText(im, str, Point(rect.x, rect.y), FONT_HERSHEY_PLAIN, 3, cvScalar(0, 0, 255), 2 );
+//			}
+//		imwrite(dir_freq_words + doc1 + ".jpg", im);
+//	}
+//
+//	getchar();
+
+void ComputeBOW(vector<word> words, string dir_docs, string file_voc, string file_words, unsigned int div_w,
+                unsigned int div_h)
+{
+	//Load the vocabulary
+	Mat dictionary;
+	FileStorage fs(file_voc, FileStorage::READ);
+	fs["vocabulary"] >> dictionary;
+	fs.release();
+
+	//create a nearest neighbor matcher
+	Ptr<DescriptorMatcher> matcher(new FlannBasedMatcher);
+	// Extract DenseSIFT from the images
+	Ptr<FeatureDetector> detector(new DenseFeatureDetector(1.f, 3, 2.f, 6, 6, true, true));
+	//create Sift descriptor extractor
+	Ptr<DescriptorExtractor> extractor(new SiftDescriptorExtractor);
+	//create BoW descriptor extractor
+	BOWImgDescriptorExtractor bowDE( extractor, matcher );
+	//Set the dictionary with the vocabulary we created in the first step
+	bowDE.setVocabulary(dictionary);
+	//For generating a mask around black pixels
+	int sz_se = 5;
+	Mat se = getStructuringElement( MORPH_ELLIPSE, Size(2*sz_se+1,2*sz_se+1), Point( sz_se, sz_se ) );
+
+	for(size_t i = 0; i < words.size(); i++)
+	{
+		Mat im = imread(dir_docs+words[i].get_doc_name()+".jpg", CV_LOAD_IMAGE_GRAYSCALE);
+
+		unsigned int x = words[i].bbox().x;
+		unsigned int y = words[i].bbox().y;
+		unsigned int w = words[i].bbox().w;
+		unsigned int h = words[i].bbox().h;
+
+		Rect roi1(x, y, w, h);
+
+//        cout<<"roi1: "<<roi1<<endl;
+//        cout<<"im: "<<im.rows<<" "<<im.cols<<endl;
+
+		Mat word_image = im(roi1);
+
+		unsigned int step_w = (unsigned int) floor(w/div_w);
+		unsigned int step_h = (unsigned int) floor(h/div_h);
+
+		cout<<"Computing BOW descriptors for word image: "<<i+1<<". "<<flush;
+
+		Mat bow_desc;
+
+		for(int xc = 0, ix = 0; xc < div_w; xc++, ix+=step_w)
+			for(int yc = 0, iy = 0; yc < div_h; yc++, iy+=step_h)
+			{
+				Rect roi2(ix, iy, step_w, step_h);
+
+//                cout<<"roi2: "<<roi2<<endl;
+//                cout<<"word_image: "<<word_image.rows<<" "<<word_image.cols<<endl;
+
+				Mat word_image_tmp = word_image(roi2);
+
+				Mat eroded_word_image_tmp;
+
+				erode( word_image_tmp, eroded_word_image_tmp, se );
+
+				Mat bin_word_image_tmp;
+
+				threshold(eroded_word_image_tmp, bin_word_image_tmp, 0, 255, THRESH_BINARY_INV|THRESH_OTSU);
+
+				vector<KeyPoint> keypoints_tmp;
+				detector->detect(word_image_tmp, keypoints_tmp, bin_word_image_tmp);
+
+				Mat bow_desc_tmp;
+
+				if(keypoints_tmp.empty())
+					bow_desc_tmp = Mat::zeros(1, dictionary.rows, CV_32F);
+				else
+					bowDE.compute(word_image_tmp, keypoints_tmp, bow_desc_tmp);
+
+				bow_desc.push_back(bow_desc_tmp);
+			}
+
+		hconcat(bow_desc, bow_desc);
+
+		// Normalizing the values between 0 and 1
+		normalize(bow_desc, bow_desc);
+
+		words[i].set_bow(bow_desc);
+
+		cout<<"Done."<<endl;
+	}
+
+	// writing the words into a binary file
+	ofstream outFILE( file_words.c_str(), ios::out | ios::binary);
+	boost::archive::binary_oarchive oa(outFILE);
+	size_t num_words = words.size();
+	oa << num_words;
+	for(size_t i = 0; i < words.size(); i++)
+		oa << words[i];
+
+	outFILE.close();
+}
